@@ -1,0 +1,53 @@
+# ============================
+# Java + Gradle .gitignore
+# ============================
+
+# Compiled class files
+*.class
+
+# Log files
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# virtual machine crash logs
+hs_err_pid*
+
+# ============================
+# Gradle
+# ============================
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local Gradle properties
+gradle-app.setting
+gradle.properties
+!gradle.properties.sample
+
+# Wrapper distribution
+gradle-wrapper.properties
+gradle-wrapper.jar
+
+# ============================
+# IntelliJ IDEA
+# ============================
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# ============================
+# OS-specific
+# ============================
+# macO
