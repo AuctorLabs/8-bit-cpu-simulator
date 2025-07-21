@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
 
-public class AddHandler extends InstructionHandler {
-    protected AddHandler(
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
+
+public class SubHandler extends InstructionHandler {
+    public SubHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,7 +15,7 @@ public class AddHandler extends InstructionHandler {
     }
 
     @Override
-    void execute() {
-        alu.add(memory[getOperand()]);
+    public void execute() {
+        alu.sub(memory[getOperand()]);
     }
 }

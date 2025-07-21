@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
 
-public class LdaHandler extends InstructionHandler{
-    protected LdaHandler(
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
+
+public class JmpHandler extends InstructionHandler {
+    public JmpHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,7 +15,7 @@ public class LdaHandler extends InstructionHandler{
     }
 
     @Override
-    void execute() {
-        accumulator.load(memory[getOperand()]);
+    public void execute() {
+        programCounter.load(getOperand());
     }
 }

@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
 
-public class JmpHandler extends InstructionHandler {
-    protected JmpHandler(
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
+
+public class NoopHandler extends InstructionHandler {
+    public NoopHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,7 +15,6 @@ public class JmpHandler extends InstructionHandler {
     }
 
     @Override
-    void execute() {
-        programCounter.load(getOperand());
+    public void execute() {
     }
 }

@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
+
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
 
 public class JezHandler extends InstructionHandler {
-    protected JezHandler(
+    public JezHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,7 +15,7 @@ public class JezHandler extends InstructionHandler {
     }
 
     @Override
-    void execute() {
+    public void execute() {
         if (isZeroFlag()) {
             programCounter.load(getOperand());
         }

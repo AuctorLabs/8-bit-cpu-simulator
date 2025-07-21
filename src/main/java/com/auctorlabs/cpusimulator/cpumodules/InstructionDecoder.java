@@ -1,4 +1,6 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.cpumodules;
+
+import com.auctorlabs.cpusimulator.Instruction;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
+
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
 
 public class HltHandler extends InstructionHandler {
-    protected HltHandler(
+    public HltHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,7 +15,7 @@ public class HltHandler extends InstructionHandler {
     }
 
     @Override
-    void execute() {
+    public void execute() {
         programCounter.load(programCounter.read() - 1); // Stay on HLT instruction
     }
 }

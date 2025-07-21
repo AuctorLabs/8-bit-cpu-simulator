@@ -1,4 +1,4 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.cpumodules;
 
 public class Register {
     private int value = 0;

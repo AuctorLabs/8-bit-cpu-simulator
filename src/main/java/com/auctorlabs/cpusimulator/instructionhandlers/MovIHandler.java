@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
 
-public class NoopHandler extends InstructionHandler {
-    protected NoopHandler(
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
+
+public class MovIHandler extends InstructionHandler {
+    public MovIHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,6 +15,7 @@ public class NoopHandler extends InstructionHandler {
     }
 
     @Override
-    void execute() {
+    public void execute() {
+        bReg.load(getOperand());
     }
 }

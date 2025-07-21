@@ -1,4 +1,7 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
+
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
 
 public abstract class InstructionHandler {
     protected final Register programCounter;
@@ -25,7 +28,7 @@ public abstract class InstructionHandler {
         this.alu = alu;
     }
 
-    abstract void execute();
+    public abstract void execute();
 
     protected int getOperand() {
         return instructionRegister.read() & 0xFF; // Lower 8 bits

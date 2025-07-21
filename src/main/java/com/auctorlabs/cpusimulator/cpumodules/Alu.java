@@ -1,4 +1,4 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.cpumodules;
 
 public class Alu {
     private final Register acc;

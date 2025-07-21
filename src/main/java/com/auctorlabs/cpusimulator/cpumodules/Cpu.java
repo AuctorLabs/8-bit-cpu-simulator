@@ -1,4 +1,7 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.cpumodules;
+
+import com.auctorlabs.cpusimulator.Instruction;
+import com.auctorlabs.cpusimulator.instructionhandlers.*;
 
 import java.util.Arrays;
 import java.util.EnumMap;

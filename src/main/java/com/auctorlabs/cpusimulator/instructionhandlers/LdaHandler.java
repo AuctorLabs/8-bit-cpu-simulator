@@ -1,7 +1,10 @@
-package com.auctorlabs.cpusimulator;
+package com.auctorlabs.cpusimulator.instructionhandlers;
 
-public class MovHandler extends InstructionHandler {
-    protected MovHandler(
+import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Register;
+
+public class LdaHandler extends InstructionHandler{
+    public LdaHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,
@@ -12,7 +15,7 @@ public class MovHandler extends InstructionHandler {
     }
 
     @Override
-    void execute() {
-        accumulator.load(bReg);
+    public void execute() {
+        accumulator.load(memory[getOperand()]);
     }
 }
