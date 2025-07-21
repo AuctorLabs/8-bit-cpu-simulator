@@ -4,16 +4,35 @@ import com.auctorlabs.cpusimulator.cpumodules.ControlUnit;
 import com.auctorlabs.cpusimulator.cpumodules.Memory;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextColor;
-import com.googlecode.lanterna.gui2.*;
+import com.googlecode.lanterna.gui2.BasicWindow;
+import com.googlecode.lanterna.gui2.BorderLayout;
+import com.googlecode.lanterna.gui2.Borders;
+import com.googlecode.lanterna.gui2.Button;
+import com.googlecode.lanterna.gui2.Component;
+import com.googlecode.lanterna.gui2.DefaultWindowManager;
+import com.googlecode.lanterna.gui2.Direction;
+import com.googlecode.lanterna.gui2.EmptySpace;
+import com.googlecode.lanterna.gui2.GridLayout;
+import com.googlecode.lanterna.gui2.Label;
+import com.googlecode.lanterna.gui2.LinearLayout;
+import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
+import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.TextBox;
+import com.googlecode.lanterna.gui2.Window;
+import com.googlecode.lanterna.gui2.WindowBasedTextGUI;
+import com.googlecode.lanterna.gui2.WindowListenerAdapter;
+import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFrame;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.swing.*;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A simple CPU emulator with a Text-based User Interface (TUI) using the Lanterna library.
@@ -57,6 +76,32 @@ public class CpuSimulatorUI {
         // Create the main window
         BasicWindow window = new BasicWindow("CPU Emulator");
         window.setHints(Collections.singletonList(Window.Hint.FULL_SCREEN));
+
+        window.addWindowListener(new WindowListenerAdapter() {
+            @Override
+            public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+                KeyStroke ctrlL = new KeyStroke('l', false, true, false);
+                KeyStroke ctrlS = new KeyStroke('s', false, true, false);
+                KeyStroke ctrlR = new KeyStroke('r', false, true, false);
+
+                boolean handled = false;
+                if (keyStroke.equals(ctrlL)) {
+                    loadCode();
+                    handled = true;
+                } else if (keyStroke.equals(ctrlS)) {
+                    step();
+                    handled = true;
+                } else if (keyStroke.equals(ctrlR)) {
+                    reset();
+                    handled = true;
+                }
+
+                if (handled) {
+                    // Consume the event so it's not passed to other components (like the editor)
+                    deliverEvent.set(false);
+                }
+            }
+        });
 
         // Main panel with a border layout
         Panel mainPanel = new Panel(new BorderLayout());
