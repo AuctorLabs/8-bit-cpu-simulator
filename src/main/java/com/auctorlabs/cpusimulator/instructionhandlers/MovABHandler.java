@@ -4,8 +4,8 @@ import com.auctorlabs.cpusimulator.cpumodules.Alu;
 import com.auctorlabs.cpusimulator.cpumodules.Memory;
 import com.auctorlabs.cpusimulator.cpumodules.Register;
 
-public class MovHandler extends InstructionHandler {
-    public MovHandler(
+public class MovABHandler extends InstructionHandler {
+    public MovABHandler(
             Register programCounter,
             Register instructionRegister,
             Register accumulator,

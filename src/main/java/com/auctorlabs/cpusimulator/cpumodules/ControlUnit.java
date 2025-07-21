@@ -28,8 +28,8 @@ public class ControlUnit {
         this.handlers.put(Instruction.STA, new StaHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.ADD, new AddHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.SUB, new SubHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.MOV_I, new MovIHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.MOV, new MovHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.MOVB, new MovBHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.MOVAB, new MovABHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.JMP, new JmpHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.JEZ, new JezHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.HLT, new HltHandler(pc, ir, acc, bReg, ir, memory, alu));

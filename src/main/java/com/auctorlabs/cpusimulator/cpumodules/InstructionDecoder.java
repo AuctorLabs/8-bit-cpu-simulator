@@ -17,8 +17,8 @@ public class InstructionDecoder {
         mapping.put(0X02, Instruction.STA);
         mapping.put(0X03, Instruction.ADD);
         mapping.put(0X04, Instruction.SUB);
-        mapping.put(0X05, Instruction.MOV_I);
-        mapping.put(0X06, Instruction.MOV);
+        mapping.put(0X05, Instruction.MOVB);
+        mapping.put(0X06, Instruction.MOVAB);
         mapping.put(0X07, Instruction.JMP);
         mapping.put(0X08, Instruction.JEZ);
     }
