@@ -3,11 +3,10 @@ package com.auctorlabs.cpusimulator.cpumodules;
 import com.auctorlabs.cpusimulator.Instruction;
 import com.auctorlabs.cpusimulator.instructionhandlers.*;
 
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Map;
 
-public class Cpu {
+public class ControlUnit {
     // Registers
     private final Register pc = new Register();  // Program Counter
     private final Register ir = new Register();  // Instruction Register
@@ -22,9 +21,9 @@ public class Cpu {
     private boolean zeroFlag = false;
 
     // Memory
-    private final int[] memory = new int[256]; // 256 words of memory
+    private final Memory memory = new Memory(256); // 256 words of memory
 
-    public Cpu() {
+    public ControlUnit() {
         this.handlers.put(Instruction.LDA, new LdaHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.STA, new StaHandler(pc, ir, acc, bReg, ir, memory, alu));
         this.handlers.put(Instruction.ADD, new AddHandler(pc, ir, acc, bReg, ir, memory, alu));
@@ -44,16 +43,16 @@ public class Cpu {
         acc.load(0);
         bReg.load(0);
         zeroFlag = false;
-        Arrays.fill(memory, 0);
+        memory.fillWithZeros();
         this.flags.load(0);
     }
 
     // The main CPU cycle
     public void step() {
-        if (pc.read() >= memory.length) return; // End of memory
+        if (pc.read() >= memory.getSize()) return; // End of memory
 
         // 1. Fetch
-        ir.load(memory[pc.read()]);
+        ir.load(memory.readFromAddress(pc.read()));
         pc.load(pc.read() + 1);
 
         // 2. Decode
@@ -72,7 +71,7 @@ public class Cpu {
     }
 
     public void loadProgram(int[] program) {
-        System.arraycopy(program, 0, memory, 0, program.length);
+        memory.writeAll(program);
     }
 
     // Getters for UI
@@ -96,7 +95,7 @@ public class Cpu {
         return zeroFlag;
     }
 
-    public int[] getMemory() {
+    public Memory getMemory() {
         return memory;
     }
 }

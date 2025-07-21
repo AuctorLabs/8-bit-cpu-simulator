@@ -1,6 +1,7 @@
 package com.auctorlabs.cpusimulator;
 
-import com.auctorlabs.cpusimulator.cpumodules.Cpu;
+import com.auctorlabs.cpusimulator.cpumodules.ControlUnit;
+import com.auctorlabs.cpusimulator.cpumodules.Memory;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.*;
@@ -21,10 +22,11 @@ import java.util.Collections;
 
 public class CpuSimulatorUI {
     // --- UI Components ---
-    private final Cpu cpu = new Cpu();
+    private final ControlUnit controlUnit = new ControlUnit();
     private TextBox codeEditor;
     private Label pcLabel, irLabel, accLabel, bRegLabel, zfLabel;
     private TextBox memoryView;
+    private int[] program = new int[] {};
 
     public static void main(String[] args) {
         try {
@@ -145,39 +147,40 @@ public class CpuSimulatorUI {
 
     private void loadCode() {
         String code = codeEditor.getText();
-        int[] program = AssemblyParser.parse(code);
-        cpu.reset();
-        cpu.loadProgram(program);
+        this.program = AssemblyParser.parse(code);
+        controlUnit.reset();
+        controlUnit.loadProgram(program);
         updateUI();
     }
 
     private void step() {
-        cpu.step();
+        controlUnit.step();
         updateUI();
     }
 
     private void reset() {
-        cpu.reset();
+        controlUnit.reset();
         updateUI();
     }
 
     private void updateUI() {
         // Update registers
-        pcLabel.setText(String.valueOf(cpu.getPc()));
-        irLabel.setText(String.format("0x%04X", cpu.getIr()));
-        accLabel.setText(String.valueOf(cpu.getAcc()));
-        bRegLabel.setText(String.valueOf(cpu.getBReg()));
+        pcLabel.setText(String.valueOf(controlUnit.getPc()));
+        irLabel.setText(String.format("0x%04X", controlUnit.getIr()));
+        accLabel.setText(String.valueOf(controlUnit.getAcc()));
+        bRegLabel.setText(String.valueOf(controlUnit.getBReg()));
 
         // Update ALU flags
-        zfLabel.setText(String.valueOf(cpu.isZeroFlag()));
+        zfLabel.setText(String.valueOf(controlUnit.isZeroFlag()));
 
         // Update memory view
         StringBuilder memSb = new StringBuilder();
-        int[] memory = cpu.getMemory();
-        for (int i = 0; i < 32; i++) { // Display first 32 memory locations for brevity
-            if (memory[i] != 0 || i == cpu.getPc()) { // Show non-zero values or the current PC location
+        Memory memory = controlUnit.getMemory();
+        int endAddress = memory.getLastNonZeroAddress() + 1;
+        for (int i = 0; i <= endAddress; i++) {
+            if (memory.readFromAddress(i) != 0 || (i < this.program.length)) {
                 memSb.append(String.format("%s%02d: 0x%04X (%d)\n",
-                        i == cpu.getPc() ? ">" : " ", i, memory[i], memory[i]));
+                        i == controlUnit.getPc() ? ">" : " ", i, memory.readFromAddress(i), memory.readFromAddress(i)));
             }
         }
         memoryView.setText(memSb.toString());

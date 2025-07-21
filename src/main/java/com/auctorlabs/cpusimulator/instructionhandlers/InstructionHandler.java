@@ -1,6 +1,7 @@
 package com.auctorlabs.cpusimulator.instructionhandlers;
 
 import com.auctorlabs.cpusimulator.cpumodules.Alu;
+import com.auctorlabs.cpusimulator.cpumodules.Memory;
 import com.auctorlabs.cpusimulator.cpumodules.Register;
 
 public abstract class InstructionHandler {
@@ -9,7 +10,7 @@ public abstract class InstructionHandler {
     protected final Register accumulator;
     protected final Register bReg;
     protected final Register flags;
-    protected final int[] memory;
+    protected final Memory memory;
     protected final Alu alu;
 
     protected InstructionHandler(
@@ -18,7 +19,8 @@ public abstract class InstructionHandler {
             Register accumulator,
             Register bReg,
             Register flags,
-            int[] memory, Alu alu) {
+            Memory memory,
+            Alu alu) {
         this.programCounter = programCounter;
         this.instructionRegister = instructionRegister;
         this.accumulator = accumulator;
