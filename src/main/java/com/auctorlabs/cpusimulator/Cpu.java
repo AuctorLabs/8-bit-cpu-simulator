@@ -1,6 +1,8 @@
 package com.auctorlabs.cpusimulator;
 
 import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.Map;
 
 public class Cpu {
     // Registers
@@ -8,13 +10,30 @@ public class Cpu {
     private final Register ir = new Register();  // Instruction Register
     private final Register acc = new Register(); // Accumulator Register
     private final Register bReg = new Register();// General Purpose Register B
+    private final Register flags = new Register();// General Purpose Register B
     private final Alu alu = new Alu(acc);
+    private final InstructionDecoder decoder = new InstructionDecoder(ir);
+    private final Map<Instruction, InstructionHandler> handlers = new EnumMap<>(Instruction.class);
 
     // Flags
     private boolean zeroFlag = false;
 
     // Memory
     private final int[] memory = new int[256]; // 256 words of memory
+
+    public Cpu() {
+        this.handlers.put(Instruction.LDA, new LdaHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.STA, new StaHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.ADD, new AddHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.SUB, new SubHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.MOV_I, new MovIHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.MOV, new MovHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.JMP, new JmpHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.JEZ, new JezHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.HLT, new HltHandler(pc, ir, acc, bReg, ir, memory, alu));
+        this.handlers.put(Instruction.NOOP, new NoopHandler(pc, ir, acc, bReg, ir, memory, alu));
+        reset();
+    }
 
     public void reset() {
         pc.load(0);
@@ -23,6 +42,7 @@ public class Cpu {
         bReg.load(0);
         zeroFlag = false;
         Arrays.fill(memory, 0);
+        this.flags.load(0);
     }
 
     // The main CPU cycle
@@ -33,46 +53,19 @@ public class Cpu {
         ir.load(memory[pc.read()]);
         pc.load(pc.read() + 1);
 
-        // 2. Decode & 3. Execute
-        int opcode = ir.read() >> 8; // Higher 8 bits
-        int operand = ir.read() & 0xFF; // Lower 8 bits
+        // 2. Decode
+        Instruction instruction = decoder.decode();
 
-        switch (opcode) {
-            case 0x01: // LDA addr -> Load Accumulator from memory
-                acc.load(memory[operand]);
-                break;
-            case 0x02: // STA addr -> Store Accumulator to memory
-                memory[operand] = acc.read();
-                break;
-            case 0x03: // ADD addr -> Add value from memory to Accumulator
-                alu.add(memory[operand]);
-                break;
-            case 0x04: // SUB addr -> Subtract value from memory from Accumulator
-                alu.sub(memory[operand]);
-                break;
-            case 0x05: // MOV B, val -> Move immediate value to B register
-                bReg.load(operand);
-                break;
-            case 0x06: // MOV A, B -> Move value from B to A
-                acc.load(bReg);
-                break;
-            case 0x07: // JMP addr -> Jump to address
-                pc.load(operand);
-                break;
-            case 0x08: // JEZ addr -> Jump if Zero Flag is true
-                if (zeroFlag) {
-                    pc.load(operand);
-                }
-                break;
-            case 0x00: // HLT -> Halt
-                pc.load(pc.read() - 1); // Stay on HLT instruction
-                break;
-            default: // NOP (No Operation) for unknown opcodes
-                break;
-        }
+        // 3. Execute
+        InstructionHandler handler = getHandler(instruction);
+        handler.execute();
 
         // Update Zero Flag after every operation
-        zeroFlag = (acc.read() == 0);
+        flags.load(flags.read() | (acc.read() == 0 ? 1 : 0));
+    }
+
+    private InstructionHandler getHandler(Instruction instruction) {
+        return this.handlers.get(instruction);
     }
 
     public void loadProgram(int[] program) {
