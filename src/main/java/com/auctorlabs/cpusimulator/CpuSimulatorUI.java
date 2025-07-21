@@ -8,6 +8,8 @@ import com.googlecode.lanterna.gui2.*;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFrame;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import java.io.IOException;
@@ -21,6 +23,7 @@ import java.util.Collections;
  */
 
 public class CpuSimulatorUI {
+    private static final Logger logger = LogManager.getLogger(CpuSimulatorUI.class);
     // --- UI Components ---
     private final ControlUnit controlUnit = new ControlUnit();
     private TextBox codeEditor;
@@ -32,7 +35,7 @@ public class CpuSimulatorUI {
         try {
             new CpuSimulatorUI().start();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("An error occurred", e);
         }
     }
 
@@ -40,17 +43,11 @@ public class CpuSimulatorUI {
         // Set up the terminal and screen
         DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory();
         terminalFactory.setTerminalEmulatorTitle("CPU Emulator");
-        System.out.println("BEFORE");
         TerminalScreen terminalScreen = terminalFactory.createScreen();
         if (terminalScreen != null) {
-            System.out.println("HERE0: " + terminalScreen.getTerminal().getClass().getName());
             if (terminalScreen.getTerminal() instanceof SwingTerminalFrame) {
-                System.out.println("HERE");
                 SwingTerminalFrame swingTerminal = (SwingTerminalFrame) terminalScreen.getTerminal();
-                SwingUtilities.invokeLater(() -> {
-                    System.out.println("HERE2");
-                    swingTerminal.setExtendedState(JFrame.MAXIMIZED_BOTH);
-                });
+                SwingUtilities.invokeLater(() -> swingTerminal.setExtendedState(JFrame.MAXIMIZED_BOTH));
             }
             terminalScreen.startScreen();
         } else {
@@ -184,5 +181,6 @@ public class CpuSimulatorUI {
             }
         }
         memoryView.setText(memSb.toString());
+        logger.debug("Finished updating the UI");
     }
 }
