@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class AssemblyParser {
     private static final Map<String, Integer> OPCODES = new HashMap<>();
@@ -21,12 +22,15 @@ public class AssemblyParser {
     }
 
     public static int[] parse(String code) {
-        List<String> lines = Arrays.asList(code.split("\n"));
+        List<String> lines = Arrays
+                .stream(code.split("\n"))
+                .filter(l -> !l.startsWith("#"))
+                .collect(Collectors.toList());
         int[] program = new int[lines.size()];
         int counter = 0;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i).trim().toUpperCase();
-            if (line.isEmpty() || line.startsWith("#")) { // Skip empty lines and comments
+            if (line.isEmpty()) {
                 continue;
             }
             String[] parts = line.split("\\s+");
