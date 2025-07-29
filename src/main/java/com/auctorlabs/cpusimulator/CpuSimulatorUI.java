@@ -3,9 +3,11 @@ package com.auctorlabs.cpusimulator;
 import com.auctorlabs.cpusimulator.cpumodules.*;
 import com.auctorlabs.cpusimulator.model.GenericCpuModule;
 import com.auctorlabs.cpusimulator.model.LogicalState;
+import com.googlecode.lanterna.TerminalPosition;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.*;
+import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
@@ -14,11 +16,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,6 +56,7 @@ public class CpuSimulatorUI {
     private Label busLabel;
     private Label outputLabel;
     private Thread cpuThread;
+    private BasicWindow window;
 
     public static void main(String[] args) {
         try {
@@ -79,17 +82,22 @@ public class CpuSimulatorUI {
         }
 
         // Create the main window
-        BasicWindow window = new BasicWindow("CPU Emulator");
-        window.setHints(Collections.singletonList(Window.Hint.FULL_SCREEN));
+        this.window = new BasicWindow("CPU Emulator");
+        this.window.setHints(Collections.singletonList(Window.Hint.FULL_SCREEN));
 
-        window.addWindowListener(new WindowListenerAdapter() {
+        this.window.addWindowListener(new WindowListenerAdapter() {
             @Override
             public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+                KeyStroke ctrlF = new KeyStroke('f', false, true, false);
                 KeyStroke ctrlL = new KeyStroke('l', false, true, false);
                 KeyStroke ctrlS = new KeyStroke('s', false, true, false);
                 KeyStroke ctrlR = new KeyStroke('r', false, true, false);
 
                 boolean handled = false;
+                if (keyStroke.equals(ctrlF)) {
+                    showLoadModal(basePane.getTextGUI());
+                    handled = true;
+                } else
                 if (keyStroke.equals(ctrlL)) {
                     loadCode();
                     handled = true;
@@ -232,6 +240,7 @@ public class CpuSimulatorUI {
     private Component createControlPanel() {
         Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
         panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
+        panel.addComponent(new Button("Load File", () -> this.showLoadModal(this.window.getTextGUI())));
         panel.addComponent(new Button("Load Code", this::loadCode));
         panel.addComponent(new Button("Toggle Clock", this::toggleClock));
         panel.addComponent(new Button("Run", this::run));
@@ -395,6 +404,106 @@ public class CpuSimulatorUI {
             e.printStackTrace();
         }
         return firmwareCode;
+    }
+
+    private void showLoadModal(WindowBasedTextGUI gui) {
+        final Window modal = new BasicWindow("Load Program from File");
+        Panel contentPanel = new Panel(new LinearLayout(Direction.VERTICAL));
+
+        Panel filenameRow = new Panel(new LinearLayout(Direction.HORIZONTAL));
+        filenameRow.addComponent(new Label("Filename:"));
+        TextBox filenameInput = new TextBox(new TerminalSize(60, 1));
+        String homeDir = System.getProperty("user.home") + "/";
+        filenameInput.setText(homeDir);
+        filenameInput.setCaretPosition(homeDir.length() + 1);
+        filenameRow.addComponent(filenameInput);
+
+        contentPanel.addComponent(filenameRow);
+        contentPanel.addComponent(new EmptySpace(new TerminalSize(1, 1))); // Adds vertical spacing
+
+        Panel buttonPanel = new Panel(new LinearLayout(Direction.HORIZONTAL));
+        Button browseButton = new Button("Browse", () -> showFileBrowser(gui, homeDir, filenameInput));
+
+
+        buttonPanel.addComponent(browseButton);
+
+        Button loadButton = new Button("Load", () -> {
+            String filename = filenameInput.getText();
+            try {
+                String code = new String(Files.readAllBytes(Paths.get(filename)));
+                codeEditor.setText(code);
+            } catch (IOException e) {
+                MessageDialog.showMessageDialog(gui, "Error", "Failed to load file: " + e.getMessage());
+            }
+            modal.close();
+        });
+        buttonPanel.addComponent(new EmptySpace(new TerminalSize(1, 1))); // Adds vertical spacing
+        buttonPanel.addComponent(loadButton);
+        contentPanel.addComponent(buttonPanel);
+        modal.setComponent(contentPanel.withBorder(Borders.singleLine("Load Program")));
+        modal.setHints(Collections.singletonList(Window.Hint.MODAL));
+
+        gui.addWindow(modal);
+
+        centerWindow(gui, modal);
+    }
+
+    private static void centerWindow(WindowBasedTextGUI gui, Window modal) {
+        gui.getGUIThread().invokeLater(() -> {
+            TerminalSize screenSize = gui.getScreen().getTerminalSize();
+            TerminalSize modalSize = modal.getComponent().getPreferredSize();
+            int x = (screenSize.getColumns() - modalSize.getColumns()) / 2;
+            int y = (screenSize.getRows() - modalSize.getRows()) / 2;
+            modal.setPosition(new TerminalPosition(Math.max(0, x), Math.max(0, y)));
+        });
+    }
+
+    private void showFileBrowser(WindowBasedTextGUI gui, String initialPath, TextBox filenameInput) {
+        File currentDir = new File(initialPath);
+        BasicWindow fileBrowserWindow = new BasicWindow("Browse Files");
+        Panel filePanel = new Panel(new LinearLayout(Direction.VERTICAL));
+
+        Label pathLabel = new Label("Current Path: " + currentDir.getAbsolutePath());
+        filePanel.addComponent(pathLabel);
+
+        ActionListBox listBox = new ActionListBox(new TerminalSize(60, 20));
+
+        File[] entries = currentDir.listFiles();
+        if (entries != null) {
+            Arrays.sort(entries, (a, b) -> {
+                if (a.isDirectory() && !b.isDirectory()) return -1;
+                if (!a.isDirectory() && b.isDirectory()) return 1;
+                return a.getName().compareToIgnoreCase(b.getName());
+            });
+
+            // Parent directory
+            if (currentDir.getParentFile() != null) {
+                listBox.addItem(".. (Parent Directory)", () -> {
+                    fileBrowserWindow.close();
+                    showFileBrowser(gui, currentDir.getParent(), filenameInput);
+                });
+            }
+
+            for (File f : entries) {
+                if (f.isDirectory()) {
+                    listBox.addItem("[DIR] " + f.getName(), () -> {
+                        fileBrowserWindow.close();
+                        showFileBrowser(gui, f.getAbsolutePath(), filenameInput);
+                    });
+                } else if (f.getName().endsWith(".txt") || f.getName().endsWith(".asm")) {
+                    listBox.addItem(f.getName(), () -> {
+                        filenameInput.setText(f.getAbsolutePath());
+                        fileBrowserWindow.close();
+                    });
+                }
+            }
+        }
+
+        filePanel.addComponent(listBox);
+        fileBrowserWindow.setComponent(filePanel.withBorder(Borders.singleLine("Files")));
+        fileBrowserWindow.setHints(Collections.singletonList(Window.Hint.MODAL));
+        gui.addWindow(fileBrowserWindow);
+        centerWindow(gui, fileBrowserWindow);
     }
 
 }
