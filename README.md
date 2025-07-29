@@ -111,7 +111,7 @@ All UI components are positioned in a grid and rendered using Lanterna's layout 
 
 - Parse and execute assembly instructions
 - Simulate instruction cycles
-- Display register and memory states
+- Display ARegister and memory states
 - Add syntax highlighting in the editor
 
 ---

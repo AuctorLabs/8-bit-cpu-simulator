@@ -10,15 +10,17 @@ public class AssemblyParser {
     private static final Map<String, Integer> OPCODES = new HashMap<>();
 
     static {
-        OPCODES.put("HLT", 0x00);
+        OPCODES.put("NOP", 0x00);
         OPCODES.put("LDA", 0x01);
-        OPCODES.put("STA", 0x02);
-        OPCODES.put("ADD", 0x03);
-        OPCODES.put("SUB", 0x04);
-        OPCODES.put("MOVB", 0x05); // Simplified: MOV B, val -> MOVB val
-        OPCODES.put("MOVAB", 0x06); // Simplified: MOV A, B -> MOVAB
-        OPCODES.put("JMP", 0x07);
-        OPCODES.put("JEZ", 0x08);
+        OPCODES.put("ADD", 0x02);
+        OPCODES.put("SUB", 0x03);
+        OPCODES.put("STA", 0x04);
+        OPCODES.put("LDI", 0x05);
+        OPCODES.put("JMP", 0x06);
+        OPCODES.put("JC", 0x07);
+        OPCODES.put("JZ", 0x08);
+        OPCODES.put("OUT", 0x09);
+        OPCODES.put("HLT", 0x10);
     }
 
     public static int[] parse(String code) {
@@ -44,7 +46,7 @@ public class AssemblyParser {
                     operand = 0; // Default if parsing fails
                 }
             }
-            program[counter] = (opcode << 8) | (operand & 0xFF);
+            program[counter] = (opcode << 4) | (operand & 0xFF);
             counter++;
         }
         return program;

@@ -1,101 +1,177 @@
 package com.auctorlabs.cpusimulator.cpumodules;
 
-import com.auctorlabs.cpusimulator.Instruction;
-import com.auctorlabs.cpusimulator.instructionhandlers.*;
+import com.auctorlabs.cpusimulator.model.*;
 
-import java.util.EnumMap;
-import java.util.Map;
-
-public class ControlUnit {
-    // Registers
-    private final Register pc = new Register();  // Program Counter
-    private final Register ir = new Register();  // Instruction Register
-    private final Register acc = new Register(); // Accumulator Register
-    private final Register bReg = new Register();// General Purpose Register B
-    private final Register flags = new Register();// General Purpose Register B
-    private final Alu alu = new Alu(acc);
-    private final InstructionDecoder decoder = new InstructionDecoder(ir);
-    private final Map<Instruction, InstructionHandler> handlers = new EnumMap<>(Instruction.class);
-
-    // Flags
-    private boolean zeroFlag = false;
-
-    // Memory
-    private final Memory memory = new Memory(256); // 256 words of memory
-
-    public ControlUnit() {
-        this.handlers.put(Instruction.LDA, new LdaHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.STA, new StaHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.ADD, new AddHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.SUB, new SubHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.MOVB, new MovBHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.MOVAB, new MovABHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.JMP, new JmpHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.JEZ, new JezHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.HLT, new HltHandler(pc, ir, acc, bReg, ir, memory, alu));
-        this.handlers.put(Instruction.NOOP, new NoopHandler(pc, ir, acc, bReg, ir, memory, alu));
-        reset();
-    }
+public class ControlUnit extends GenericCpuModule {
+    private int stateCounter;
+    private ControlWord controlWord = new ControlWord(new LogicalState[] {
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW,
+            LogicalState.LOW
+    });
 
     public void reset() {
-        pc.load(0);
-        ir.load(0);
-        acc.load(0);
-        bReg.load(0);
-        zeroFlag = false;
-        memory.fillWithZeros();
-        this.flags.load(0);
+        this.stateCounter = 0;
+        this.programCounter.setValue(0);
+        this.accumulator.setValue(0);
+        this.bRegister.setValue(0);
+        this.flagsRegister.setValue(0);
+        this.instructionRegister.setValue(0);
+        this.memoryAddressRegister.setValue(0);
+        this.clock.reset();
+        this.bus.setValue(0);
+        this.alu.setValue(0);
+        this.ram.fillWithZeros();
     }
 
-    // The main CPU cycle
-    public void step() {
-        if (pc.read() >= memory.getSize()) return; // End of memory
+    private final Clock clock;
 
-        // 1. Fetch
-        ir.load(memory.readFromAddress(pc.read()));
-        pc.load(pc.read() + 1);
+    private final ProgramCounter programCounter;  // Program Counter
 
-        // 2. Decode
-        Instruction instruction = decoder.decode();
+    private final InstructionRegister instructionRegister;
 
-        // 3. Execute
-        InstructionHandler handler = getHandler(instruction);
-        handler.execute();
+    private final Accumulator accumulator;
 
-        // Update Zero Flag after every operation
-        flags.load(flags.read() | (acc.read() == 0 ? 1 : 0));
+    private final BRegister bRegister;
+    private final OutputRegister outputRegister;
+
+    private final FlagsRegister flagsRegister;
+
+    private final MemoryAddressRegister memoryAddressRegister;
+
+    private final Alu alu;
+
+    private final Rom romA;
+
+    private final Rom romB;
+
+    private final Ram ram;
+
+    public int getStateCounter() {
+        return this.stateCounter;
     }
 
-    private InstructionHandler getHandler(Instruction instruction) {
-        return this.handlers.get(instruction);
+    public ControlUnit(
+            Clock clock, Bus bus,
+            ProgramCounter programCounter,
+            InstructionRegister instructionRegister,
+            Accumulator accumulator,
+            BRegister bRegister,
+            OutputRegister outputRegister, FlagsRegister flags,
+            MemoryAddressRegister memoryAddressRegister, Alu alu,
+            Rom romA, Rom romB, Ram ram) {
+        super(bus);
+        this.clock = clock;
+        this.programCounter = programCounter;
+        this.instructionRegister = instructionRegister;
+        this.accumulator = accumulator;
+        this.bRegister = bRegister;
+        this.outputRegister = outputRegister;
+        this.flagsRegister = flags;
+        this.memoryAddressRegister = memoryAddressRegister;
+        this.alu = alu;
+        this.romA = romA;
+        this.romB = romB;
+        this.ram = ram;
+        this.stateCounter = 0;
     }
 
-    public void loadProgram(int[] program) {
-        memory.writeAll(program);
+    public void fetchDecodeExecute(boolean execute) {
+        int controlWordAddress = this.assembleControlWordAddress();
+        this.fetchControlWord(controlWordAddress);
+        this.handleControlWord(this.controlWord);
+        if (execute) {
+            this.stateCounter++;
+            if (this.stateCounter > 7) {
+                this.stateCounter = 0;
+            }
+        }
     }
 
-    // Getters for UI
-    public int getPc() {
-        return pc.read();
+    private int assembleControlWordAddress() {
+        int flagBits = (this.flagsRegister.getValue() << 8);
+
+        int programInstructionBits = (((this.instructionRegister.getValue() & 0xF0) >> 4) << 3);
+
+        int stateCounterBits = (this.stateCounter & 0x07);
+
+        return flagBits | programInstructionBits | stateCounterBits;
     }
 
-    public int getIr() {
-        return ir.read();
+    private void handleControlWord(ControlWord controlWord) {
+        try {
+            this.clock.setHaltInput(controlWord.getWord()[ControlSignal.HLT.getCode()]);
+            this.memoryAddressRegister.setLoadInput(controlWord.getWord()[ControlSignal.MI.getCode()]);
+            this.ram.setWriteEnableInput(controlWord.getWord()[ControlSignal.RI.getCode()]);
+            this.ram.setOutputEnableInput(controlWord.getWord()[ControlSignal.RO.getCode()]);
+            this.instructionRegister.setOutputEnableInput(controlWord.getWord()[ControlSignal.IO.getCode()]);
+            this.instructionRegister.setLoadInput(controlWord.getWord()[ControlSignal.II.getCode()]);
+            this.accumulator.setLoadInput(controlWord.getWord()[ControlSignal.AI.getCode()]);
+            this.accumulator.setOutputEnableInput(controlWord.getWord()[ControlSignal.AO.getCode()]);
+            this.alu.setOutputEnableInput(controlWord.getWord()[ControlSignal.EO.getCode()]);
+            this.alu.setSubtractionInput(controlWord.getWord()[ControlSignal.SU.getCode()]);
+            this.bRegister.setLoadInput(controlWord.getWord()[ControlSignal.BI.getCode()]);
+            this.outputRegister.setLoadInput(controlWord.getWord()[ControlSignal.OI.getCode()]);
+            this.programCounter.setIncrementInput(controlWord.getWord()[ControlSignal.CE.getCode()]);
+            this.programCounter.setOutputEnableInput(controlWord.getWord()[ControlSignal.CO.getCode()]);
+            this.programCounter.setLoadInput(controlWord.getWord()[ControlSignal.J.getCode()]);
+            this.flagsRegister.setLoadInput(controlWord.getWord()[ControlSignal.FI.getCode()]);
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
     }
 
-    public int getAcc() {
-        return acc.read();
+    @Override
+    public void setWillWrite(ControlWord controlWord) {
+        this.willWrite = false;
     }
 
-    public int getBReg() {
-        return bReg.read();
+    @Override
+    public void processClockSignal(boolean execute) {
+        if (this.clockInput == LogicalState.HIGH) {
+            this.fetchDecodeExecute(execute);
+        }
     }
 
-    public boolean isZeroFlag() {
-        return zeroFlag;
+    @Override
+    public void writeToBus() {
+
     }
 
-    public Memory getMemory() {
-        return memory;
+    @Override
+    public void readFromBus() {
+
+    }
+
+    private void fetchControlWord(int address) {
+        int low = this.romA.readFromAddress(address);
+        int high = this.romB.readFromAddress(address);
+        int content = ((high << 8) | low);
+        LogicalState[] word = new LogicalState[16];
+        for (int i = 0; i < 16; i++) {
+            if (((content & ((int) Math.pow(2, i))) >> i) == 1) {
+                word[i] = LogicalState.HIGH;
+            } else {
+                word[i] = LogicalState.LOW;
+            }
+        }
+        this.controlWord = new ControlWord(word);
+    }
+
+    public ControlWord getControlWord() {
+        return controlWord;
     }
 }
