@@ -7,6 +7,13 @@ import com.googlecode.lanterna.TerminalPosition;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.*;
+import com.googlecode.lanterna.gui2.BorderLayout;
+import com.googlecode.lanterna.gui2.Button;
+import com.googlecode.lanterna.gui2.Component;
+import com.googlecode.lanterna.gui2.GridLayout;
+import com.googlecode.lanterna.gui2.Label;
+import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.Window;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.screen.TerminalScreen;
@@ -16,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,6 +31,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A simple CPU emulator with a Text-based User Interface (TUI) using the Lanterna library.
@@ -53,10 +62,14 @@ public class CpuSimulatorUI {
     private Rom romA;
     private Rom romB;
     private Bus bus;
-    private Label busLabel;
-    private Label outputLabel;
+    private AtomicReference<Label> busLabel = new AtomicReference<>();
+    private AtomicReference<Label> outputLabel = new AtomicReference<>();
     private Thread cpuThread;
     private BasicWindow window;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean paused = new AtomicBoolean(false);
+    private final Object pauseLock = new Object();
+    private volatile boolean shouldStop = false;
 
     public static void main(String[] args) {
         try {
@@ -74,7 +87,36 @@ public class CpuSimulatorUI {
         if (terminalScreen != null) {
             if (terminalScreen.getTerminal() instanceof SwingTerminalFrame) {
                 SwingTerminalFrame swingTerminal = (SwingTerminalFrame) terminalScreen.getTerminal();
+                Font monospacedFont = new Font("Courier New", Font.PLAIN, 16); // or any preferred monospaced font
+                swingTerminal.setFont(monospacedFont);
                 SwingUtilities.invokeLater(() -> swingTerminal.setExtendedState(JFrame.MAXIMIZED_BOTH));
+                swingTerminal.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+                swingTerminal.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosing(java.awt.event.WindowEvent e) {
+                        // Kill CPU thread if running
+                        if (cpuThread != null && cpuThread.isAlive()) {
+                            try {
+                                shouldStop = true;
+                                paused.set(false);
+                                cpuThread.interrupt();
+                                cpuThread.join();
+                            } catch (InterruptedException ex) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+
+                        // Then cleanly shut down Lanterna
+                        try {
+                            terminalScreen.stopScreen();  // Close Lanterna properly
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+
+                        System.exit(0);  // Finally exit the app
+                    }
+                });
+
             }
             terminalScreen.startScreen();
         } else {
@@ -146,30 +188,46 @@ public class CpuSimulatorUI {
 
         initializeCircuit();
 
-        // Initial UI state update
-        updateUI();
-
         // Create and start GUI
         WindowBasedTextGUI textGUI = new MultiWindowTextGUI(terminalScreen, new DefaultWindowManager(), new EmptySpace(TextColor.ANSI.BLUE));
         textGUI.addWindowAndWait(window);
+
+        // Initial UI state update
+        updateUI();
     }
 
     private Component createBottomPanel() {
         Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
         panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
-        panel.addComponent(createMemoryPanel());
-        panel.addComponent(createStatusPanel());
+
+        Component memoryPanel = createMemoryPanel();
+        memoryPanel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Beginning, LinearLayout.GrowPolicy.None));
+        panel.addComponent(memoryPanel);
+
+        Component statusPanel = createStatusPanel();
+        statusPanel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill, LinearLayout.GrowPolicy.CanGrow));
+        panel.addComponent(statusPanel);
+
         return panel;
     }
+
 
     private Component createStatusPanel() {
         Panel panel = new Panel(new GridLayout(1));
         panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
-        busLabel = new Label("Bus: 0 1 0 1 0 1 0 1");
-        panel.addComponent(busLabel);
-        outputLabel = new Label("Output: 0 1 0 1 0 1 0 1");
-        panel.addComponent(outputLabel);
+
+        createRegisterPanel(busLabel, panel, "Bus");
+
+        createRegisterPanel(outputLabel, panel, "Output");
+
         return panel.withBorder(Borders.singleLine("Status"));
+    }
+
+    private void createRegisterPanel(AtomicReference<Label> registerLabel, Panel parentPanel, String panelLabel) {
+        Panel registerPanel = new Panel();
+        registerLabel.set(new Label("0 1 0 1 0 1 0 1"));
+        registerPanel.addComponent(registerLabel.get());
+        parentPanel.addComponent(registerPanel.withBorder(Borders.singleLine(panelLabel)));
     }
 
     private Border createInfoPanel() {
@@ -251,21 +309,54 @@ public class CpuSimulatorUI {
     }
 
     private void halt() {
-        this.cpuThread.interrupt();
+        paused.set(true);
+        clock.setHaltInput(LogicalState.HIGH);
     }
 
     private void run() {
-        clock.setHaltInput(LogicalState.LOW);
-        cpuThread = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    clock.tick(false);
-                    updateUI();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+        if (cpuThread != null && cpuThread.isAlive() && !shouldStop) {
+            // Thread is alive and not stopped — resume if paused
+            if (paused.get()) {
+                paused.set(false);
+                synchronized (pauseLock) {
+                    pauseLock.notifyAll();
                 }
             }
+            return;
+        }
+
+        // Start or restart thread
+        shouldStop = false;
+        paused.set(false);
+        running.set(true);
+        clock.setHaltInput(LogicalState.LOW);
+
+        cpuThread = new Thread(() -> {
+            try {
+                while (!shouldStop) {
+                    synchronized (pauseLock) {
+                        while (paused.get() && !shouldStop) {
+                            pauseLock.wait();
+                        }
+                    }
+
+                    if (shouldStop) break;
+
+                    clock.tick(false);
+                    updateUI();
+                    Thread.sleep(100);
+
+                    if (clock.getHaltInput() == LogicalState.HIGH) {
+                        break;
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                running.set(false);
+            }
         });
+
         cpuThread.start();
     }
 
@@ -285,52 +376,84 @@ public class CpuSimulatorUI {
 
     private void step() {
         try {
+            // Fully stop any running thread before stepping
+            if (cpuThread != null && cpuThread.isAlive()) {
+                shouldStop = true;
+                paused.set(false);
+                cpuThread.interrupt();
+                cpuThread.join();
+            }
+
             clock.tick(true);
+            updateUI();
+
+            if (clock.getHaltInput() == LogicalState.HIGH) {
+                shouldStop = true;
+            }
+
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
         }
-        updateUI();
     }
 
     private void reset() {
-        this.cpuThread.interrupt();
+        try {
+            if (cpuThread != null && cpuThread.isAlive()) {
+                shouldStop = true;
+                paused.set(false);
+                cpuThread.interrupt();
+                cpuThread.join();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         controlUnit.reset();
         updateUI();
     }
 
     private void updateUI() {
-        // Update registers
-        pcLabel.setText(String.valueOf(programCounter.getValue()));
-        irLabel.setText(String.format("0x%04X", instructionRegister.getValue()));
-        accLabel.setText(String.valueOf(accumulator.getValue()));
-        bRegLabel.setText(String.valueOf(bRegister.getValue()));
+        this.window.getTextGUI().getGUIThread().invokeLater(() -> {
+            // Update registers
+            pcLabel.setText(String.valueOf(programCounter.getValue()));
+            irLabel.setText(String.format("0x%04X", instructionRegister.getValue()));
+            accLabel.setText(String.valueOf(accumulator.getValue()));
+            bRegLabel.setText(String.valueOf(bRegister.getValue()));
 
-        clockLevelLabel.setText(String.valueOf(clock.getState()));
-        haltLabel.setText(String.valueOf(clock.getHaltInput()));
-        stepsLabel.setText("T" + (this.controlUnit != null ? this.controlUnit.getStateCounter() : 0));
+            clockLevelLabel.setText(String.valueOf(clock.getState()));
+            haltLabel.setText(String.valueOf(clock.getHaltInput()));
+            stepsLabel.setText("T" + (this.controlUnit != null ? this.controlUnit.getStateCounter() : 0));
 
-        busLabel.setText(String.format("Bus: %8s", Integer.toBinaryString(this.bus.getValue())).replace(" ", "0"));
-        outputLabel.setText(String.format("Output: %8s", Integer.toBinaryString(this.outputRegister.getValue())).replace(" ", "0"));
+            int busValue = this.bus.getValue() > 255 ? 0 : this.bus.getValue();
+            String busBinary = String.format("%8s", Integer.toBinaryString(busValue)).replace(" ", "0");
+            String spacedBusBinary = String.join(" ", busBinary.split(""));
+            busLabel.get().setText(spacedBusBinary);
 
-        // Update ALU flags
-        zfLabel.setText(String.valueOf(((flagsRegister.getValue() & 0xFF) >>> 7) == 1 ? LogicalState.HIGH : LogicalState.LOW));
+            int outputRegisterValue = this.outputRegister.getValue() > 255 ? 0 : this.outputRegister.getValue();
+            String outputBinary = String.format("%8s", Integer.toBinaryString(outputRegisterValue)).replace(" ", "0");
+            String spacedOutputBinary = String.join(" ", outputBinary.split(""));
+            outputLabel.get().setText(spacedOutputBinary);
 
-        // Update memory view
-        StringBuilder memSb = new StringBuilder();
+            // Update ALU flags
+            zfLabel.setText(String.valueOf(((flagsRegister.getValue() & 0xFF) >>> 7) == 1 ? LogicalState.HIGH : LogicalState.LOW));
 
-        int endAddress = this.ram.getLastNonZeroAddress() + 1;
-        for (int i = 0; i <= endAddress; i++) {
-            if (this.ram.readFromAddress(i) != 0 || (i < this.program.length)) {
-                memSb.append(String.format(
-                        "%s%02d: 0x%04X (%d)\n",
-                        i == this.programCounter.getValue() ? ">" : " ",
-                        i,
-                        this.ram.readFromAddress(i),
-                        this.ram.readFromAddress(i) & 0xFF));
+            // Update memory view
+            StringBuilder memSb = new StringBuilder();
+
+            int endAddress = this.ram.getLastNonZeroAddress() + 1;
+            for (int i = 0; i <= endAddress; i++) {
+                if (this.ram.readFromAddress(i) != 0 || (i < this.program.length)) {
+                    memSb.append(String.format(
+                            "%s%02d: 0x%04X (%d)\n",
+                            i == this.programCounter.getValue() ? ">" : " ",
+                            i,
+                            this.ram.readFromAddress(i),
+                            this.ram.readFromAddress(i) & 0xFF));
+                }
             }
-        }
-        memoryView.setText(memSb.toString());
-        logger.debug("Finished updating the UI");
+            memoryView.setText(memSb.toString());
+            logger.debug("Finished updating the UI");
+        });
     }
 
     private void initializeCircuit() throws IOException {
