@@ -70,6 +70,14 @@ public class CpuSimulatorUI {
     private final AtomicBoolean paused = new AtomicBoolean(false);
     private final Object pauseLock = new Object();
     private volatile boolean shouldStop = false;
+    private Label frequencyLabel;
+    private TextBox frequencyInput;
+    private AtomicReference<Label> pcBinLabel = new AtomicReference<>();
+    private AtomicReference<Label> irBinLabel = new AtomicReference<>();
+    private AtomicReference<Label> accBinLabel = new AtomicReference<>();
+    private AtomicReference<Label> bRegBinLabel = new AtomicReference<>();
+
+
 
     public static void main(String[] args) {
         try {
@@ -80,6 +88,8 @@ public class CpuSimulatorUI {
     }
 
     public void start() throws IOException {
+        this.initializeCircuit();
+
         // Set up the terminal and screen
         DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory();
         terminalFactory.setTerminalEmulatorTitle("CPU Emulator");
@@ -186,8 +196,6 @@ public class CpuSimulatorUI {
 
         window.setComponent(mainPanel);
 
-        initializeCircuit();
-
         // Create and start GUI
         WindowBasedTextGUI textGUI = new MultiWindowTextGUI(terminalScreen, new DefaultWindowManager(), new EmptySpace(TextColor.ANSI.BLUE));
         textGUI.addWindowAndWait(window);
@@ -217,8 +225,11 @@ public class CpuSimulatorUI {
         panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
 
         createRegisterPanel(busLabel, panel, "Bus");
-
         createRegisterPanel(outputLabel, panel, "Output");
+        createRegisterPanel(pcBinLabel, panel, "PC");
+        createRegisterPanel(irBinLabel, panel, "IR");
+        createRegisterPanel(accBinLabel, panel, "ACC");
+        createRegisterPanel(bRegBinLabel, panel, "BREG");
 
         return panel.withBorder(Borders.singleLine("Status"));
     }
@@ -235,8 +246,8 @@ public class CpuSimulatorUI {
         panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
         panel.addComponent(createRegistersPanel());
         panel.addComponent(createAluPanel());
-        panel.addComponent(createClockPanel());
         panel.addComponent(createControlUnitPanel());
+        panel.addComponent(createClockPanel());
         return panel.withBorder(Borders.singleLine("Info"));
     }
 
@@ -276,12 +287,37 @@ public class CpuSimulatorUI {
 
     private Component createClockPanel() {
         Panel panel = new Panel(new GridLayout(2));
+        panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
+
         panel.addComponent(new Label("HALT:"));
         haltLabel = new Label("false");
         panel.addComponent(haltLabel);
+
         panel.addComponent(new Label("Level:"));
         clockLevelLabel = new Label("HIGH");
         panel.addComponent(clockLevelLabel);
+
+        panel.addComponent(new Label("Freq (Hz):"));
+        frequencyLabel = new Label(String.valueOf(clock.getFrequency()));
+        panel.addComponent(frequencyLabel);
+
+        panel.addComponent(new Label("Set Freq:"));
+        frequencyInput = new TextBox(new TerminalSize(6, 1));
+        frequencyInput.setText(String.valueOf(clock.getFrequency()));
+        panel.addComponent(frequencyInput); // ✅ This line was missing before
+
+        panel.addComponent(new EmptySpace(new TerminalSize(1, 1))); // Align Apply button
+        panel.addComponent(new Button("Apply", () -> {
+            try {
+                long newFreq = Long.parseLong(frequencyInput.getText());
+                if (newFreq <= 0) throw new NumberFormatException();
+                clock.setFrequency(newFreq);
+                frequencyLabel.setText(String.valueOf(newFreq));
+            } catch (NumberFormatException e) {
+                MessageDialog.showMessageDialog(window.getTextGUI(), "Invalid Input", "Please enter a positive integer for frequency.");
+            }
+        }));
+
         return panel.withBorder(Borders.singleLine("Clock"));
     }
 
@@ -344,7 +380,6 @@ public class CpuSimulatorUI {
 
                     clock.tick(false);
                     updateUI();
-                    Thread.sleep(100);
 
                     if (clock.getHaltInput() == LogicalState.HIGH) {
                         break;
@@ -412,6 +447,11 @@ public class CpuSimulatorUI {
         updateUI();
     }
 
+    private String formatBin(int val) {
+        String bin = String.format("%8s", Integer.toBinaryString(val & 0xFF)).replace(' ', '0');
+        return String.join(" ", bin.split(""));
+    }
+
     private void updateUI() {
         this.window.getTextGUI().getGUIThread().invokeLater(() -> {
             // Update registers
@@ -425,14 +465,13 @@ public class CpuSimulatorUI {
             stepsLabel.setText("T" + (this.controlUnit != null ? this.controlUnit.getStateCounter() : 0));
 
             int busValue = this.bus.getValue() > 255 ? 0 : this.bus.getValue();
-            String busBinary = String.format("%8s", Integer.toBinaryString(busValue)).replace(" ", "0");
-            String spacedBusBinary = String.join(" ", busBinary.split(""));
-            busLabel.get().setText(spacedBusBinary);
 
-            int outputRegisterValue = this.outputRegister.getValue() > 255 ? 0 : this.outputRegister.getValue();
-            String outputBinary = String.format("%8s", Integer.toBinaryString(outputRegisterValue)).replace(" ", "0");
-            String spacedOutputBinary = String.join(" ", outputBinary.split(""));
-            outputLabel.get().setText(spacedOutputBinary);
+            busLabel.get().setText(formatBin(busValue));
+            outputLabel.get().setText(formatBin(outputRegister.getValue()));
+            pcBinLabel.get().setText(formatBin(programCounter.getValue()));
+            irBinLabel.get().setText(formatBin(instructionRegister.getValue()));
+            accBinLabel.get().setText(formatBin(accumulator.getValue()));
+            bRegBinLabel.get().setText(formatBin(bRegister.getValue()));
 
             // Update ALU flags
             zfLabel.setText(String.valueOf(((flagsRegister.getValue() & 0xFF) >>> 7) == 1 ? LogicalState.HIGH : LogicalState.LOW));
@@ -452,7 +491,7 @@ public class CpuSimulatorUI {
                 }
             }
             memoryView.setText(memSb.toString());
-            logger.debug("Finished updating the UI");
+//            logger.debug("Finished updating the UI");
         });
     }
 

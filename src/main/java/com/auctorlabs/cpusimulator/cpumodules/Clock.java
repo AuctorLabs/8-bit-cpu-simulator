@@ -7,18 +7,19 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class Clock {
     private LogicalState state = LogicalState.LOW;
-    private final long frequency;
+    private final AtomicLong frequency;
     private final AtomicReference<LogicalState> haltInput;
     private final GenericCpuModule[] cpuModules;
     private boolean debug = false;
 
     public Clock(int frequency, LogicalState haltInput, GenericCpuModule[] cpuModules) {
-        this.frequency = frequency;
+        this.frequency = new AtomicLong(frequency);
         this.haltInput = new AtomicReference<>(haltInput);
         this.cpuModules = cpuModules;
     }
@@ -27,14 +28,16 @@ public class Clock {
         return state;
     }
 
+    public long getFrequency() {
+        return frequency.get();
+    }
+
+    public void setFrequency(long freq) {
+        frequency.set(freq);
+    }
+
     public void tick(boolean debug) throws InterruptedException {
         this.debug = debug;
-        try {
-            double period = 1.0 / frequency * 1000.0;
-            Thread.sleep((long) period);
-        } catch (Exception e) {
-            System.out.println(e);
-        }
 
         if (!this.debug && this.haltInput.get() == LogicalState.HIGH) {
             return;
@@ -58,7 +61,12 @@ public class Clock {
                     .setClockInput(this.state, true);
         }
 
-        System.out.println(LocalDateTime.now() + ": Tick " + this.state.name());
+        long periodNanos = (long)(1_000_000_000.0 / frequency.get());
+        long startTime = System.nanoTime();
+        while ((System.nanoTime() - startTime) < periodNanos) {
+            // Busy wait to ensure accurate timing
+            Thread.onSpinWait(); // Java 9+; safe to skip on older versions
+        }
     }
 
     public LogicalState getHaltInput() {
