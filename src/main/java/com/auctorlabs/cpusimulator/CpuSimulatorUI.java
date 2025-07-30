@@ -16,6 +16,7 @@ import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.Window;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.input.KeyStroke;
+import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFrame;
@@ -603,7 +604,15 @@ public class CpuSimulatorUI {
         contentPanel.addComponent(buttonPanel);
         modal.setComponent(contentPanel.withBorder(Borders.singleLine("Load Program")));
         modal.setHints(Collections.singletonList(Window.Hint.MODAL));
-
+        modal.addWindowListener(new WindowListenerAdapter() {
+            @Override
+            public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+                if (keyStroke.getKeyType() == KeyType.Escape) {
+                    modal.close();
+                    deliverEvent.set(false);
+                }
+            }
+        });
         gui.addWindow(modal);
 
         centerWindow(gui, modal);
@@ -663,6 +672,15 @@ public class CpuSimulatorUI {
         filePanel.addComponent(listBox);
         fileBrowserWindow.setComponent(filePanel.withBorder(Borders.singleLine("Files")));
         fileBrowserWindow.setHints(Collections.singletonList(Window.Hint.MODAL));
+        fileBrowserWindow.addWindowListener(new WindowListenerAdapter() {
+            @Override
+            public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
+                if (keyStroke.getKeyType() == KeyType.Escape) {
+                    fileBrowserWindow.close();
+                    deliverEvent.set(false);
+                }
+            }
+        });
         gui.addWindow(fileBrowserWindow);
         centerWindow(gui, fileBrowserWindow);
     }
