@@ -75,6 +75,7 @@ public class CpuSimulatorUI {
     private final AtomicReference<Label> irBinLabel = new AtomicReference<>();
     private final AtomicReference<Label> accBinLabel = new AtomicReference<>();
     private final AtomicReference<Label> bRegBinLabel = new AtomicReference<>();
+    private SwingTerminalFrame swingTerminal;
 
     public static void main(String[] args) {
         try {
@@ -93,7 +94,7 @@ public class CpuSimulatorUI {
         TerminalScreen terminalScreen = terminalFactory.createScreen();
         if (terminalScreen != null) {
             if (terminalScreen.getTerminal() instanceof SwingTerminalFrame) {
-                SwingTerminalFrame swingTerminal = (SwingTerminalFrame) terminalScreen.getTerminal();
+                swingTerminal = (SwingTerminalFrame) terminalScreen.getTerminal();
                 Font monospacedFont = new Font("Courier New", Font.PLAIN, 16); // or any preferred monospaced font
                 swingTerminal.setFont(monospacedFont);
                 SwingUtilities.invokeLater(() -> swingTerminal.setExtendedState(JFrame.MAXIMIZED_BOTH));
@@ -342,6 +343,22 @@ public class CpuSimulatorUI {
         panel.addComponent(new Button("Halt", this::halt));
         panel.addComponent(new Button("Step", this::step));
         panel.addComponent(new Button("Reset", this::reset));
+        panel.addComponent(new Button("Exit", () -> {
+            try {
+                if (cpuThread != null && cpuThread.isAlive()) {
+                    shouldStop = true;
+                    paused.set(false);
+                    cpuThread.interrupt();
+                    cpuThread.join();
+                }
+
+                window.getTextGUI().getScreen().stopScreen();
+                swingTerminal.dispose();
+                System.exit(0);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }));
         return panel.withBorder(Borders.singleLine("Controls"));
     }
 
