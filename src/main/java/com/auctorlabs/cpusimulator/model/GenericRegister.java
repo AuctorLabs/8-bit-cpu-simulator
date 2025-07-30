@@ -42,8 +42,6 @@ public class GenericRegister extends GenericCpuModule {
                 this.writeToBus();
             } else if (this.loadInput == LogicalState.HIGH) {
                 this.readFromBus();
-            } else {
-//                throw new RuntimeException("Invalid State");
             }
         }
     }

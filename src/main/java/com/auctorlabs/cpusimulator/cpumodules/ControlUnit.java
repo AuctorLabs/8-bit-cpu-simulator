@@ -1,8 +1,12 @@
 package com.auctorlabs.cpusimulator.cpumodules;
 
+import com.auctorlabs.cpusimulator.CpuSimulatorUI;
 import com.auctorlabs.cpusimulator.model.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ControlUnit extends GenericCpuModule {
+    private static final Logger logger = LogManager.getLogger(ControlUnit.class);
     private int stateCounter;
     private ControlWord controlWord = new ControlWord(new LogicalState[] {
             LogicalState.LOW,
@@ -31,6 +35,7 @@ public class ControlUnit extends GenericCpuModule {
         this.flagsRegister.setValue(0);
         this.instructionRegister.setValue(0);
         this.memoryAddressRegister.setValue(0);
+        this.outputRegister.setValue(0);
         this.clock.reset();
         this.bus.setValue(0);
         this.alu.setValue(0);
@@ -94,6 +99,16 @@ public class ControlUnit extends GenericCpuModule {
         this.fetchControlWord(controlWordAddress);
         this.handleControlWord(this.controlWord);
         if (execute) {
+            logger.debug("Executing control word: " + this.controlWord);
+            logger.debug("At program line: " + this.programCounter.getValue());
+            logger.debug("With MAR pointing to: " + this.memoryAddressRegister.getValue());
+            logger.debug("Where RAM contains: " + this.ram.readFromAddress(this.memoryAddressRegister.getValue()));
+            logger.debug("At ROM address: " + controlWordAddress);
+            logger.debug("With Flags: " + this.flagsRegister.getValue());
+            logger.debug("At microstep: T" + this.stateCounter);
+            logger.debug("For CPU instruction: " + this.instructionRegister.getValue());
+            logger.debug("Accumulator has: " + this.accumulator.getValue());
+            logger.debug("-------------------------------------------------\n\n");
             this.stateCounter++;
             if (this.stateCounter > 7) {
                 this.stateCounter = 0;
@@ -102,7 +117,7 @@ public class ControlUnit extends GenericCpuModule {
     }
 
     private int assembleControlWordAddress() {
-        int flagBits = (this.flagsRegister.getValue() << 8);
+        int flagBits = ((this.alu.getZeroFlag() << 1) | this.alu.getCarryFlag()) << 7;
 
         int programInstructionBits = (((this.instructionRegister.getValue() & 0xF0) >> 4) << 3);
 

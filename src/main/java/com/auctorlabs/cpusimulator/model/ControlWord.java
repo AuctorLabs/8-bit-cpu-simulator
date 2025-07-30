@@ -11,4 +11,12 @@ public class ControlWord {
         return this.word;
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sbResult = new StringBuilder();
+        for (int i = 0; i < this.word.length; i++) {
+            sbResult.append(this.word[i].name() + " ");
+        }
+        return sbResult.toString().trim();
+    }
 }

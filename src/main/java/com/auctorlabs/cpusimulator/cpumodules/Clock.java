@@ -3,7 +3,6 @@ package com.auctorlabs.cpusimulator.cpumodules;
 import com.auctorlabs.cpusimulator.model.GenericCpuModule;
 import com.auctorlabs.cpusimulator.model.LogicalState;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -64,8 +63,7 @@ public class Clock {
         long periodNanos = (long)(1_000_000_000.0 / frequency.get());
         long startTime = System.nanoTime();
         while ((System.nanoTime() - startTime) < periodNanos) {
-            // Busy wait to ensure accurate timing
-            Thread.onSpinWait(); // Java 9+; safe to skip on older versions
+            Thread.onSpinWait();
         }
     }
 

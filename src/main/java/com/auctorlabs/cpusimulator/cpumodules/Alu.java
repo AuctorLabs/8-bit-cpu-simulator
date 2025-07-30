@@ -7,23 +7,28 @@ import com.auctorlabs.cpusimulator.model.LogicalState;
 
 public class Alu extends GenericCpuModule {
 
-    private LogicalState subtractInput = LogicalState.LOW;
     private final Accumulator accumulator;
 
     private final BRegister bRegister;
+    private FlagsRegister flagsRegister;
 
     private int value = 0;
     private LogicalState outputEnableInput;
     private LogicalState subtractionInput;
+    private int zeroFlag = 0;
+    private int carryFlag = 0;
 
-    public Alu(Bus bus, Accumulator accumulator, BRegister bRegister) {
+    public Alu(Bus bus, Accumulator accumulator, BRegister bRegister, FlagsRegister flagsRegister) {
         super(bus);
         this.accumulator = accumulator;
         this.bRegister = bRegister;
+        this.flagsRegister = flagsRegister;
     }
 
     public void setValue(int value) {
         this.value = value;
+        this.carryFlag = 0;
+        this.zeroFlag = 0;
     }
 
     @Override
@@ -37,11 +42,15 @@ public class Alu extends GenericCpuModule {
     protected void processClockSignal(boolean execute) {
         if (this.clockInput == LogicalState.HIGH) {
             if (this.outputEnableInput == LogicalState.HIGH) {
-                if (this.subtractInput == LogicalState.HIGH) {
-                    this.value = (this.accumulator.getValue() - this.bRegister.getValue());
+                if (this.subtractionInput == LogicalState.HIGH) {
+                    this.value = (this.accumulator.getValue() - this.bRegister.getValue()) & 0xFF;
+                    this.carryFlag = this.bRegister.getValue() >= this.accumulator.getValue() ? 1 : 0;
                 } else {
                     this.value = (this.accumulator.getValue() + this.bRegister.getValue());
+                    this.carryFlag = this.value > 255 ? 1 : 0;
                 }
+                this.zeroFlag = this.value % 256 == 0 ? 1 : 0;
+
                 if (execute) {
                     this.writeToBus();
                 }
@@ -51,7 +60,7 @@ public class Alu extends GenericCpuModule {
 
     @Override
     public void writeToBus() {
-        this.bus.setValue(this.value);
+        this.bus.setValue(this.value % 256);
     }
 
     @Override
@@ -72,5 +81,13 @@ public class Alu extends GenericCpuModule {
 
     public LogicalState getSubtractionInput() {
         return subtractionInput;
+    }
+
+    public int getZeroFlag() {
+        return zeroFlag;
+    }
+
+    public int getCarryFlag() {
+        return carryFlag;
     }
 }

@@ -10,11 +10,11 @@ Configuration:
   Loggers:
     Logger:
       - name: com.auctorlabs.cpusimulator
-        level: debug
+        level: ${sys:logLevel:-info}
         additivity: false
         AppenderRef:
           - ref: CONSOLE
     Root:
-      level: info
+      level: ${sys:logLevel:-info}
       AppenderRef:
         - ref: CONSOLE

@@ -20,7 +20,21 @@ dependencies {
 
 application {
     mainClass = 'com.auctorlabs.cpusimulator.CpuSimulatorUI'
+
     applicationDefaultJvmArgs = [
+            "-Dorg.apache.logging.log4j.simplelog.StatusLogger.level=ERROR",
+            "-DlogLevel=${project.hasProperty('logLevel') ? project.getProperty('logLevel') : 'info'}"
+    ]
+}
+
+tasks.register('runWithDebug', JavaExec) {
+    group = 'application'
+    description = 'Run the app with logLevel=debug'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set('com.auctorlabs.cpusimulator.CpuSimulatorUI')
+
+    jvmArgs = [
+            "-DlogLevel=debug",
             "-Dorg.apache.logging.log4j.simplelog.StatusLogger.level=ERROR"
     ]
 }

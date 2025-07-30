@@ -47,7 +47,7 @@ public class CpuSimulatorUI {
     private Clock clock;
     private ControlUnit controlUnit;
     private TextBox codeEditor;
-    private Label pcLabel, irLabel, accLabel, bRegLabel, zfLabel, haltLabel, clockLevelLabel, stepsLabel;
+    private Label pcLabel, irLabel, accLabel, bRegLabel, zfLabel, carryLabel, haltLabel, clockLevelLabel, stepsLabel;
     private TextBox memoryView;
     private int[] program = new int[]{};
     private Ram ram;
@@ -176,12 +176,16 @@ public class CpuSimulatorUI {
         editorPanel.addComponent(new Label("Assembly Code Editor"), BorderLayout.Location.TOP);
         codeEditor = new TextBox(new TerminalSize(50, 15));
         codeEditor.setText("# Example Program:\n" +
-                "LDI 10     ; Load immediate value 10 into the accumulator\n" +
-                "STA 14     ; Store the value at memory address 14\n" +
-                "LDI 5      ; Load immediate value 5 into the accumulator\n" +
-                "ADD 14     ; Add value from memory address 14 to the accumulator (5 + 10)\n" +
-                "OUT        ; Output the result (should be 15)\n" +
-                "HLT        ; Halt the program");
+                "LDI 1\n" +
+                "STA 15\n" +
+                "OUT\n" +
+                "ADD 15\n" +
+                "JC 6\n" +
+                "JMP 2\n" +
+                "SUB 15\n" +
+                "OUT\n" +
+                "JZ 2\n" +
+                "JMP 6");
         editorPanel.addComponent(codeEditor, BorderLayout.Location.CENTER);
         mainPanel.addComponent(editorPanel.withBorder(Borders.singleLine("Editor")), BorderLayout.Location.LEFT);
 
@@ -252,8 +256,7 @@ public class CpuSimulatorUI {
     }
 
     private Component createRegistersPanel() {
-        Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
-        panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
+        Panel panel = new Panel(new GridLayout(2));
         panel.addComponent(new Label("PC:"));
         pcLabel = new Label("0");
         panel.addComponent(pcLabel);
@@ -272,13 +275,17 @@ public class CpuSimulatorUI {
     private Component createAluPanel() {
         Panel panel = new Panel(new GridLayout(2));
         panel.addComponent(new Label("Zero Flag:"));
-        zfLabel = new Label("false");
+        zfLabel = new Label("LOW");
         panel.addComponent(zfLabel);
+        panel.addComponent(new Label("Carry Flag:"));
+        carryLabel = new Label("LOW");
+        panel.addComponent(carryLabel);
         return panel.withBorder(Borders.singleLine("ALU Flags"));
     }
 
     private Component createControlUnitPanel() {
-        Panel panel = new Panel(new GridLayout(2));
+        Panel panel = new Panel(new LinearLayout(Direction.HORIZONTAL));
+        panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
         panel.addComponent(new Label("Step:"));
         stepsLabel = new Label("T" + (this.controlUnit != null ? this.controlUnit.getStateCounter() : 0));
         panel.addComponent(stepsLabel);
@@ -286,9 +293,7 @@ public class CpuSimulatorUI {
     }
 
     private Component createClockPanel() {
-        Panel panel = new Panel(new GridLayout(2));
-        panel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
-
+        Panel panel = new Panel(new GridLayout(4));
         panel.addComponent(new Label("HALT:"));
         haltLabel = new Label("false");
         panel.addComponent(haltLabel);
@@ -306,7 +311,6 @@ public class CpuSimulatorUI {
         frequencyInput.setText(String.valueOf(clock.getFrequency()));
         panel.addComponent(frequencyInput); // ✅ This line was missing before
 
-        panel.addComponent(new EmptySpace(new TerminalSize(1, 1))); // Align Apply button
         panel.addComponent(new Button("Apply", () -> {
             try {
                 long newFreq = Long.parseLong(frequencyInput.getText());
@@ -474,7 +478,8 @@ public class CpuSimulatorUI {
             bRegBinLabel.get().setText(formatBin(bRegister.getValue()));
 
             // Update ALU flags
-            zfLabel.setText(String.valueOf(((flagsRegister.getValue() & 0xFF) >>> 7) == 1 ? LogicalState.HIGH : LogicalState.LOW));
+            zfLabel.setText(String.valueOf((flagsRegister.getValue() & 1) == 1 ? LogicalState.HIGH : LogicalState.LOW));
+            carryLabel.setText(String.valueOf((flagsRegister.getValue() & 2) >> 1 == 1 ? LogicalState.HIGH : LogicalState.LOW));
 
             // Update memory view
             StringBuilder memSb = new StringBuilder();
@@ -501,8 +506,9 @@ public class CpuSimulatorUI {
         this.instructionRegister = new InstructionRegister(bus);
         this.accumulator = new Accumulator(bus);
         this.bRegister = new BRegister(bus);
-        this.flagsRegister = new FlagsRegister(bus);
-        this.alu = new Alu(bus, accumulator, bRegister);
+        this.flagsRegister = new FlagsRegister(bus, alu);
+        this.alu = new Alu(bus, accumulator, bRegister, flagsRegister);
+        this.flagsRegister.setAlu(this.alu);
         this.outputRegister = new OutputRegister(bus);
         this.memoryAddressRegister = new MemoryAddressRegister(bus);
         this.romA = new Rom(512);
