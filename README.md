@@ -103,6 +103,10 @@ Explore his full assembly programs in the [YouTube series](https://www.youtube.c
 
 ![CPU Simulator Main Window](./cpu-simulator.png)
 
+## 🎥 Demo
+
+![CPU Simulator Count Up and Down Demo](./cpu-simulator-demo.gif)
+
 ## 🧱 Built With
 
 - Java 17+

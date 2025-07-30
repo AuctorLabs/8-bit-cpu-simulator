@@ -51,3 +51,4 @@ out/
 # OS-specific
 # ============================
 # macO
+.DS_Store
