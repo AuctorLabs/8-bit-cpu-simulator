@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.auctorlabs.cpusimulator.utils.ParseUtils.parseSafeInt;
+
 public class AssemblyParser {
     private static final Map<String, Integer> OPCODES = new HashMap<>();
 
@@ -30,24 +32,16 @@ public class AssemblyParser {
                 .collect(Collectors.toList());
         int[] program = new int[lines.size()];
         int counter = 0;
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i).trim().toUpperCase();
+        for (String s : lines) {
+            String line = s.trim().toUpperCase();
             if (line.isEmpty()) {
                 continue;
             }
             String[] parts = line.split("\\s+");
             String mnemonic = parts[0];
             int opcode = OPCODES.getOrDefault(mnemonic, 0);
-            int operand = 0;
-            if (parts.length > 1) {
-                try {
-                    operand = Integer.parseInt(parts[1]);
-                } catch (NumberFormatException e) {
-                    operand = 0; // Default if parsing fails
-                }
-            }
-            program[counter] = (opcode << 4) | (operand & 0xFF);
-            counter++;
+            int operand = (parts.length > 1) ? parseSafeInt(parts[1]) : 0;
+            program[counter++] = (opcode << 4) | (operand & 0xFF);
         }
         return program;
     }

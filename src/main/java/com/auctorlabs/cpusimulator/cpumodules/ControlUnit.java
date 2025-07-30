@@ -1,7 +1,9 @@
 package com.auctorlabs.cpusimulator.cpumodules;
 
-import com.auctorlabs.cpusimulator.CpuSimulatorUI;
-import com.auctorlabs.cpusimulator.model.*;
+import com.auctorlabs.cpusimulator.model.ControlSignal;
+import com.auctorlabs.cpusimulator.model.ControlWord;
+import com.auctorlabs.cpusimulator.model.GenericCpuModule;
+import com.auctorlabs.cpusimulator.model.LogicalState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

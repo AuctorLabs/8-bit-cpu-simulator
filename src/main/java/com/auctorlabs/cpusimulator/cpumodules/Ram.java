@@ -1,7 +1,5 @@
 package com.auctorlabs.cpusimulator.cpumodules;
 
-import com.auctorlabs.cpusimulator.cpumodules.Bus;
-import com.auctorlabs.cpusimulator.cpumodules.MemoryAddressRegister;
 import com.auctorlabs.cpusimulator.model.ControlSignal;
 import com.auctorlabs.cpusimulator.model.ControlWord;
 import com.auctorlabs.cpusimulator.model.GenericCpuModule;
@@ -11,22 +9,16 @@ import java.util.Arrays;
 
 public class Ram extends GenericCpuModule {
     private final int[] data;
-    private final int size;
     private LogicalState writeEnableInput;
     protected LogicalState outputEnableInput;
-    private MemoryAddressRegister memoryAddressRegister;
+    private final MemoryAddressRegister memoryAddressRegister;
 
     public Ram(int size, Bus bus, LogicalState writeEnableInput, LogicalState outputEnableInput, MemoryAddressRegister memoryAddressRegister) {
         super(bus);
         this.data = new int[size];
-        this.size = size;
         this.writeEnableInput = writeEnableInput;
         this.outputEnableInput = outputEnableInput;
         this.memoryAddressRegister = memoryAddressRegister;
-    }
-
-    public Ram(int size, Bus bus, MemoryAddressRegister memoryAddressRegister) {
-        this(size, bus, LogicalState.LOW, LogicalState.LOW, memoryAddressRegister);
     }
 
     public int readFromAddress(int address) {
@@ -45,10 +37,6 @@ public class Ram extends GenericCpuModule {
         Arrays.fill(this.data, 0);
     }
 
-    public int getSize() {
-        return size;
-    }
-
     public int getLastNonZeroAddress() {
         for (int i = this.data.length - 1; i >= 0; i--) {
             if (this.data[i] != 0) {
@@ -60,14 +48,6 @@ public class Ram extends GenericCpuModule {
 
     public void setWriteEnableInput(LogicalState writeEnableInput) {
         this.writeEnableInput = writeEnableInput;
-    }
-
-    public LogicalState getWriteEnableInput() {
-        return writeEnableInput;
-    }
-
-    public LogicalState getOutputEnableInput() {
-        return outputEnableInput;
     }
 
     public void setOutputEnableInput(LogicalState outputEnableInput) {

@@ -44,9 +44,9 @@ public class Clock {
 
         this.state = this.state == LogicalState.LOW ? LogicalState.HIGH : LogicalState.LOW;
 
-        for (int i = 0; i < this.cpuModules.length; i++) {
-            this.cpuModules[i].setClockInput(this.state, false);
-            this.cpuModules[i].setWillWrite(((ControlUnit) this.cpuModules[0]).getControlWord());
+        for (GenericCpuModule cpuModule : this.cpuModules) {
+            cpuModule.setClockInput(this.state, false);
+            cpuModule.setWillWrite(((ControlUnit) this.cpuModules[0]).getControlWord());
         }
 
         List<GenericCpuModule> sortedWithWritersOnTop = Arrays

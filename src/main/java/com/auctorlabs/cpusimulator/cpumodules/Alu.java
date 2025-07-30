@@ -10,7 +10,6 @@ public class Alu extends GenericCpuModule {
     private final Accumulator accumulator;
 
     private final BRegister bRegister;
-    private FlagsRegister flagsRegister;
 
     private int value = 0;
     private LogicalState outputEnableInput;
@@ -18,11 +17,10 @@ public class Alu extends GenericCpuModule {
     private int zeroFlag = 0;
     private int carryFlag = 0;
 
-    public Alu(Bus bus, Accumulator accumulator, BRegister bRegister, FlagsRegister flagsRegister) {
+    public Alu(Bus bus, Accumulator accumulator, BRegister bRegister) {
         super(bus);
         this.accumulator = accumulator;
         this.bRegister = bRegister;
-        this.flagsRegister = flagsRegister;
     }
 
     public void setValue(int value) {
@@ -71,16 +69,8 @@ public class Alu extends GenericCpuModule {
         this.outputEnableInput = outputEnableInput;
     }
 
-    public LogicalState getOutputEnableInput() {
-        return outputEnableInput;
-    }
-
     public void setSubtractionInput(LogicalState subtractionInput) {
         this.subtractionInput = subtractionInput;
-    }
-
-    public LogicalState getSubtractionInput() {
-        return subtractionInput;
     }
 
     public int getZeroFlag() {

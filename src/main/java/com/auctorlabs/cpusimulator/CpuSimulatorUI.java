@@ -58,26 +58,22 @@ public class CpuSimulatorUI {
     private FlagsRegister flagsRegister;
     private Alu alu;
     private OutputRegister outputRegister;
-    private MemoryAddressRegister memoryAddressRegister;
     private Rom romA;
     private Rom romB;
     private Bus bus;
-    private AtomicReference<Label> busLabel = new AtomicReference<>();
-    private AtomicReference<Label> outputLabel = new AtomicReference<>();
+    private final AtomicReference<Label> busLabel = new AtomicReference<>();
+    private final AtomicReference<Label> outputLabel = new AtomicReference<>();
     private Thread cpuThread;
     private BasicWindow window;
-    private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
     private final Object pauseLock = new Object();
     private volatile boolean shouldStop = false;
     private Label frequencyLabel;
     private TextBox frequencyInput;
-    private AtomicReference<Label> pcBinLabel = new AtomicReference<>();
-    private AtomicReference<Label> irBinLabel = new AtomicReference<>();
-    private AtomicReference<Label> accBinLabel = new AtomicReference<>();
-    private AtomicReference<Label> bRegBinLabel = new AtomicReference<>();
-
-
+    private final AtomicReference<Label> pcBinLabel = new AtomicReference<>();
+    private final AtomicReference<Label> irBinLabel = new AtomicReference<>();
+    private final AtomicReference<Label> accBinLabel = new AtomicReference<>();
+    private final AtomicReference<Label> bRegBinLabel = new AtomicReference<>();
 
     public static void main(String[] args) {
         try {
@@ -368,7 +364,6 @@ public class CpuSimulatorUI {
         // Start or restart thread
         shouldStop = false;
         paused.set(false);
-        running.set(true);
         clock.setHaltInput(LogicalState.LOW);
 
         cpuThread = new Thread(() -> {
@@ -391,8 +386,6 @@ public class CpuSimulatorUI {
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-            } finally {
-                running.set(false);
             }
         });
 
@@ -507,10 +500,10 @@ public class CpuSimulatorUI {
         this.accumulator = new Accumulator(bus);
         this.bRegister = new BRegister(bus);
         this.flagsRegister = new FlagsRegister(bus, alu);
-        this.alu = new Alu(bus, accumulator, bRegister, flagsRegister);
+        this.alu = new Alu(bus, accumulator, bRegister);
         this.flagsRegister.setAlu(this.alu);
         this.outputRegister = new OutputRegister(bus);
-        this.memoryAddressRegister = new MemoryAddressRegister(bus);
+        MemoryAddressRegister memoryAddressRegister = new MemoryAddressRegister(bus);
         this.romA = new Rom(512);
         this.romB = new Rom(512);
         this.ram = new Ram(512, bus, LogicalState.LOW, LogicalState.LOW, memoryAddressRegister);

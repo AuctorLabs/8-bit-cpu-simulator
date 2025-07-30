@@ -24,8 +24,4 @@ public class FlagsRegister extends GenericRegister {
     public void setAlu(Alu alu) {
         this.alu = alu;
     }
-
-    public Alu getAlu() {
-        return alu;
-    }
 }
